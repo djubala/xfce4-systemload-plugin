@@ -2,6 +2,8 @@
 
 # xfce4-systemload-plugin
 
+This repo is a fork of xfce4-systemload-plugin with added support for disk bandwidth monitoring.
+
 xfce4-systemload-plugin displays current CPU load, memory in use, network utilization, swap space, and system uptime in xfce4-panel.
 
 ----
