@@ -31,6 +31,7 @@ typedef enum {
     MEM_MONITOR,
     NET_MONITOR,
     SWAP_MONITOR,
+    DISK_MONITOR
 } SystemloadMonitor;
 
 typedef struct _SystemloadConfigClass SystemloadConfigClass;

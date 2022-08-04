@@ -52,6 +52,7 @@ static gchar *const DEFAULT_LABEL[] = {
     "mem",
     "net",
     "swap",
+    "disk",
 };
 
 static gchar *const DEFAULT_COLOR[] = {
@@ -59,6 +60,7 @@ static gchar *const DEFAULT_COLOR[] = {
     "#00c000", /* MEM */
     "#c00000", /* NET */
     "#f0f000", /* SWAP */
+    "#ca00ff", /* DISK */
 };
 
 
@@ -95,7 +97,7 @@ struct _SystemloadConfig
     gboolean       use_label;
     gchar         *label;
     GdkRGBA        color;
-  } monitor[4];
+  } monitor[5];
 };
 
 typedef enum
@@ -121,6 +123,10 @@ typedef enum
     PROP_SWAP_USE_LABEL,
     PROP_SWAP_LABEL,
     PROP_SWAP_COLOR,
+    PROP_DISK_ENABLED,
+    PROP_DISK_USE_LABEL,
+    PROP_DISK_LABEL,
+    PROP_DISK_COLOR,
     N_PROPERTIES,
   } SystemloadProperty;
 
@@ -157,6 +163,11 @@ prop2monitor (SystemloadProperty p)
     case PROP_SWAP_LABEL:
     case PROP_SWAP_COLOR:
       return SWAP_MONITOR;
+    case PROP_DISK_ENABLED:
+    case PROP_DISK_USE_LABEL:
+    case PROP_DISK_LABEL:
+    case PROP_DISK_COLOR:
+      return DISK_MONITOR;
     default:
       /* Ideally, this codepath is never reached */
       return 0;
@@ -319,6 +330,34 @@ systemload_config_class_init (SystemloadConfigClass *klass)
                                                        NULL, NULL,
                                                        GDK_TYPE_RGBA,
                                                        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  g_object_class_install_property (gobject_class,
+                                   PROP_DISK_ENABLED,
+                                   g_param_spec_boolean ("disk-enabled", NULL, NULL,
+                                                         TRUE,
+                                                         G_PARAM_READWRITE |
+                                                         G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class,
+                                   PROP_DISK_USE_LABEL,
+                                   g_param_spec_boolean ("disk-use-label", NULL, NULL,
+                                                         TRUE,
+                                                         G_PARAM_READWRITE |
+                                                         G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class,
+                                   PROP_DISK_LABEL,
+                                   g_param_spec_string ("disk-label", NULL, NULL,
+                                                        DEFAULT_LABEL[DISK_MONITOR],
+                                                        G_PARAM_READWRITE |
+                                                        G_PARAM_STATIC_STRINGS));
+
+  g_object_class_install_property (gobject_class,
+                                   PROP_DISK_COLOR,
+                                   g_param_spec_boxed ("disk-color",
+                                                       NULL, NULL,
+                                                       GDK_TYPE_RGBA,
+                                                       G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
 
   systemload_config_signals[CONFIGURATION_CHANGED] =
     g_signal_new (g_intern_static_string ("configuration-changed"),
@@ -397,6 +436,7 @@ systemload_config_get_property (GObject    *object,
     case PROP_MEMORY_ENABLED:
     case PROP_NETWORK_ENABLED:
     case PROP_SWAP_ENABLED:
+    case PROP_DISK_ENABLED:
       g_value_set_boolean (value, config->monitor[prop2monitor(prop_id)].enabled);
       break;
 
@@ -404,6 +444,7 @@ systemload_config_get_property (GObject    *object,
     case PROP_MEMORY_USE_LABEL:
     case PROP_NETWORK_USE_LABEL:
     case PROP_SWAP_USE_LABEL:
+    case PROP_DISK_USE_LABEL:
       g_value_set_boolean (value, config->monitor[prop2monitor(prop_id)].use_label);
       break;
 
@@ -411,6 +452,7 @@ systemload_config_get_property (GObject    *object,
     case PROP_MEMORY_LABEL:
     case PROP_NETWORK_LABEL:
     case PROP_SWAP_LABEL:
+    case PROP_DISK_LABEL:
       g_value_set_string (value, config->monitor[prop2monitor(prop_id)].label);
       break;
 
@@ -418,6 +460,7 @@ systemload_config_get_property (GObject    *object,
     case PROP_MEMORY_COLOR:
     case PROP_NETWORK_COLOR:
     case PROP_SWAP_COLOR:
+    case PROP_DISK_COLOR:
       g_value_set_boxed (value, &config->monitor[prop2monitor(prop_id)].color);
       break;
 
@@ -652,6 +695,48 @@ systemload_config_set_property (GObject      *object,
       g_boxed_free (GDK_TYPE_RGBA, val_rgba);
       break;
 
+    case PROP_DISK_ENABLED:
+      val_bool = g_value_get_boolean (value);
+      if (config->monitor[DISK_MONITOR].enabled != val_bool)
+        {
+          config->monitor[DISK_MONITOR].enabled = val_bool;
+          g_object_notify (G_OBJECT (config), "disk-enabled");
+          g_signal_emit (G_OBJECT (config), systemload_config_signals [CONFIGURATION_CHANGED], 0);
+        }
+      break;
+
+    case PROP_DISK_USE_LABEL:
+      val_bool = g_value_get_boolean (value);
+      if (config->monitor[DISK_MONITOR].use_label != val_bool)
+        {
+          config->monitor[DISK_MONITOR].use_label = val_bool;
+          g_object_notify (G_OBJECT (config), "disk-use-label");
+          g_signal_emit (G_OBJECT (config), systemload_config_signals [CONFIGURATION_CHANGED], 0);
+        }
+      break;
+
+    case PROP_DISK_LABEL:
+      val_string = g_value_get_string (value);
+      if (g_strcmp0 (config->monitor[DISK_MONITOR].label, val_string) != 0)
+        {
+          g_free (config->monitor[DISK_MONITOR].label);
+          config->monitor[DISK_MONITOR].label = g_value_dup_string (value);
+          g_object_notify (G_OBJECT (config), "disk-label");
+          g_signal_emit (G_OBJECT (config), systemload_config_signals [CONFIGURATION_CHANGED], 0);
+        }
+      break;
+
+    case PROP_DISK_COLOR:
+      val_rgba = g_value_dup_boxed (value);
+      if (!gdk_rgba_equal (&config->monitor[DISK_MONITOR].color, val_rgba))
+        {
+          config->monitor[DISK_MONITOR].color = *val_rgba;
+          g_object_notify (G_OBJECT (config), "disk-color");
+          g_signal_emit (G_OBJECT (config), systemload_config_signals [CONFIGURATION_CHANGED], 0);
+        }
+      g_boxed_free (GDK_TYPE_RGBA, val_rgba);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -830,6 +915,23 @@ systemload_config_new (const gchar     *property_base)
       property = g_strconcat (property_base, "/swap/color", NULL);
       xfconf_g_property_bind_gdkrgba (channel, property, config, "swap-color");
       g_free (property);
+
+      property = g_strconcat (property_base, "/disk/enabled", NULL);
+      xfconf_g_property_bind (channel, property, G_TYPE_BOOLEAN, config, "disk-enabled");
+      g_free (property);
+
+      property = g_strconcat (property_base, "/disk/use-label", NULL);
+      xfconf_g_property_bind (channel, property, G_TYPE_BOOLEAN, config, "disk-use-label");
+      g_free (property);
+
+      property = g_strconcat (property_base, "/disk/label", NULL);
+      xfconf_g_property_bind (channel, property, G_TYPE_STRING, config, "disk-label");
+      g_free (property);
+
+      property = g_strconcat (property_base, "/disk/color", NULL);
+      xfconf_g_property_bind_gdkrgba (channel, property, config, "disk-color");
+      g_free (property);
+    }
     }
 
   return config;

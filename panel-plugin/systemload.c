@@ -88,7 +88,7 @@ typedef struct
     gboolean          use_timeout_seconds;
     guint             timeout_id;
     t_command         command;
-    t_monitor         *monitor[4];
+    t_monitor         *monitor[5];
     t_uptime_monitor  uptime;
 #ifdef HAVE_UPOWER_GLIB
     UpClient          *upower;
@@ -186,6 +186,11 @@ update_monitors(t_global_monitor *global)
         if (read_netload (&net, &NTotal) == 0)
             global->monitor[NET_MONITOR]->value_read = net;
     }
+    if (systemload_config_get_enabled (config, DISK_MONITOR))
+    {
+        if (1)
+            global->monitor[DISK_MONITOR]->value_read = 42;
+    }
     if (systemload_config_get_uptime_enabled (config))
         global->uptime.value_read = read_uptime();
 
@@ -223,6 +228,14 @@ update_monitors(t_global_monitor *global)
         g_snprintf(tooltip, sizeof(tooltip), _("Network: %ld Mbit/s"),
                    (glong) round (NTotal / 1e6));
         set_tooltip(global->monitor[NET_MONITOR]->ebox, tooltip);
+    }
+
+    if (systemload_config_get_enabled (config, DISK_MONITOR))
+    {
+        gchar tooltip[128];
+        g_snprintf(tooltip, sizeof(tooltip), _("Disk: %ld MB/s"),
+                   (glong) 42);
+        set_tooltip(global->monitor[DISK_MONITOR]->ebox, tooltip);
     }
 
     if (systemload_config_get_enabled (config, SWAP_MONITOR))
@@ -798,13 +811,15 @@ monitor_create_options(XfcePanelPlugin *plugin, t_global_monitor *global)
             N_ ("Memory monitor"),
             N_ ("Network monitor"),
             N_ ("Swap monitor"),
+            N_ ("Disk monitor"),
             N_ ("Uptime monitor")
     };
     static const gchar *SETTING_TEXT[] = {
             "cpu",
             "memory",
             "network",
-            "swap"
+            "swap",
+            "disk"
     };
 
     xfce_panel_plugin_block_menu (plugin);
@@ -892,7 +907,7 @@ monitor_create_options(XfcePanelPlugin *plugin, t_global_monitor *global)
 
     /* Uptime monitor options */
     new_monitor_setting (global, GTK_GRID(grid), 4 + 2*G_N_ELEMENTS (global->monitor),
-                         _(FRAME_TEXT[4]), FALSE, "uptime");
+                         _(FRAME_TEXT[5]), FALSE, "uptime");
 
     gtk_widget_show_all (dlg);
 }
