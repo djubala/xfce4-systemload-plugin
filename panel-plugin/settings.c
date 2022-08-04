@@ -932,7 +932,6 @@ systemload_config_new (const gchar     *property_base)
       xfconf_g_property_bind_gdkrgba (channel, property, config, "disk-color");
       g_free (property);
     }
-    }
 
   return config;
 }
