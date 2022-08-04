@@ -35,6 +35,10 @@ From source code repository:
     % make
     % make install
 
+Alternatively, you can unse the supplied install script, which install a "System Load Monitor 2" panel item:
+
+    % ./myinstall.sh
+
 From release tarball:
 
     % tar xf xfce4-systemload-plugin-<version>.tar.bz2
